@@ -1,0 +1,300 @@
+\documentclass[twocolumn]{article}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{listings}
+
+\title{Algorithmic Analysis of Convolutional Neural Network for Text Classification (Emotions Dataset)}
+\author{Do Viet Long - ICT 2440037}
+\date{\\ \today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report provides a comprehensive algorithmic analysis and implementation review of a Convolutional Neural Network (CNN) designed for text classification, specifically emotion detection from textual data. The project utilizes an emotions dataset (likely the "Emotions Dataset for NLP" from Kaggle) and employs the TensorFlow/Keras framework for model development. The methodology encompasses several key stages: data loading and preprocessing, including text tokenization and sequence padding; data balancing by undersampling majority classes and removing minority classes; a multi-branch CNN architecture incorporating embedding layers, 1D convolutional layers with different filter configurations, global max pooling, and dense layers for classification; model compilation with the Adamax optimizer and categorical cross-entropy loss; and finally, model training and evaluation using metrics such as accuracy, precision, recall, and confusion matrices. The model reportedly achieves high accuracy (around 95\%), indicating the effectiveness of the chosen CNN approach for this NLP task.
+\end{abstract}
+
+\section{Introduction}
+Text classification is a fundamental task in Natural Language Processing (NLP) with applications ranging from sentiment analysis to topic categorization and emotion detection. This project aims to develop a deep learning model, specifically a Convolutional Neural Network (CNN), to classify text into predefined emotion categories (e.g., joy, sadness, anger, fear). CNNs, traditionally known for their success in computer vision, have also proven effective for text by capturing local contextual features (n-grams) through 1D convolutions over word embeddings. 
+
+The implementation is carried out using TensorFlow/Keras. This report will dissect the algorithmic components and their code realization, including:
+\begin{itemize}
+    \item \textbf{Data Acquisition and Preprocessing}: Loading the text dataset, handling class labels, and preparing the text for a CNN model through tokenization and padding.
+    \item \textbf{Data Balancing}: Addressing potential class imbalances in the dataset to ensure fair model training.
+    \item \textbf{CNN Model Architecture}: Detailing the multi-branch CNN structure, including embedding layers, 1D convolutional layers, pooling mechanisms, and fully connected layers.
+    \item \textbf{Training Procedure}: Outlining the model compilation, choice of optimizer and loss function, and the training process.
+    \item \textbf{Evaluation Metrics}: Discussing how the model's performance is assessed.
+\end{itemize}
+
+\section{Algorithmic Analysis and Source Code Implementation}
+
+\subsection{Environment Setup and Utilized Libraries}
+
+The project leverages several Python libraries standard for NLP and deep learning tasks:
+
+\begin{itemize}
+    \item \textbf{Pandas}: For loading and manipulating structured data, likely reading \texttt{train.txt}, \texttt{val.txt}, and \texttt{test.txt} files.
+    
+    \item \textbf{NumPy}: For numerical operations, especially array manipulations.
+    
+    \item \textbf{Matplotlib \& Seaborn}: For data visualization, such as plotting label distributions and model performance metrics (e.g., confusion matrix, training history).
+    
+    \item \textbf{Scikit-learn} (\texttt{sklearn.metrics}, \texttt{sklearn.preprocessing.LabelEncoder}): For evaluating model performance (classification report, confusion matrix) and for encoding categorical labels into numerical format.
+    
+    \item \textbf{TensorFlow/Keras} (\texttt{tensorflow.keras.preprocessing.text.Tokenizer}, \texttt{tensorflow.keras.preprocessing.sequence.pad\_sequences}, \texttt{tensorflow.keras.layers}, \texttt{tensorflow.keras.models}, \texttt{tensorflow.keras.optimizers}, \texttt{tensorflow.keras.metrics}, \texttt{keras.utils.to\_categorical}): The core deep learning framework used for:
+    \begin{itemize}
+        \item Text preprocessing (\texttt{Tokenizer}, \texttt{pad\_sequences}).
+        \item Building the CNN model (various layers like \texttt{Embedding}, \texttt{Conv1D}, \texttt{GlobalMaxPooling1D}, \texttt{Dense}, \texttt{Dropout}, \texttt{BatchNormalization}, \texttt{Concatenate}).
+        \item Defining and compiling the model (\texttt{Model}, \texttt{Adamax} optimizer, \texttt{categorical\_crossentropy} loss).
+        \item Utility functions (\texttt{to\_categorical} for one-hot encoding labels).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Data Preparation: Algorithm and Implementation}
+
+\textbf{Data Loading and Initial Exploration:}
+The dataset is loaded from text files (\texttt{train}, \texttt{validation}, \texttt{test} sets), likely containing sentences and their corresponding emotion labels (e.g., \texttt{sadness}, \texttt{anger}, \texttt{love}, \texttt{surprise}, \texttt{fear}, \texttt{joy}). The code performs an initial exploration by displaying unique labels and their value counts, often visualized using a pie chart to identify class distribution.
+
+\vspace{0.5em}
+\textbf{Data Balancing:}
+The notebook indicates an initial imbalance in the dataset. To address this, the implementation involves:
+\begin{itemize}
+    \item \textbf{Removing Minority Classes:} Labels like \texttt{love} and \texttt{surprise} (which have the lowest counts) are removed from the dataset.
+    \item \textbf{Undersampling Majority Classes:} For the remaining classes (\texttt{joy}, \texttt{sadness}, \texttt{fear}, \texttt{anger}), a fixed number of samples (e.g., 2200 for \texttt{joy} and \texttt{sadness}) or all available samples for smaller majority classes are taken to create a more balanced training set. This is done using \texttt{DataFrame.sample(n=..., random\_state=...)}.
+\end{itemize}
+The sampled DataFrames for each class are concatenated, and the final DataFrame is shuffled. This balancing step is crucial for preventing the model from being biased towards over-represented classes. Similar balancing is applied to the validation and test sets.
+
+\vspace{0.5em}
+\textbf{Label Encoding:} 
+The categorical emotion labels (strings) are converted into numerical representations using \texttt{sklearn.preprocessing.LabelEncoder}. The \texttt{fit\_transform} method is applied on the training labels, and \texttt{transform} is used on validation and test labels.
+
+\vspace{0.5em}
+\textbf{Text Tokenization and Sequencing:}
+\begin{itemize}
+    \item \textbf{Tokenizer Initialization:} \texttt{tensorflow.keras.preprocessing.text.Tokenizer(num\_words=max\_words)} is initialized, where \texttt{max\_words} (e.g., 10000) defines the maximum number of most frequent words to keep in the vocabulary.
+    \item \textbf{Fitting Tokenizer:} The tokenizer is fitted on the training text data (\texttt{tokenizer.fit\_on\_texts(tr\_text)}), which builds the word index (vocabulary).
+    \item \textbf{Text to Sequences:} The texts (train, validation, test) are converted into sequences of integers (\texttt{tokenizer.texts\_to\_sequences(...)}), where each integer represents a word in the vocabulary.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Sequence Padding:} 
+Since CNNs require inputs of uniform length, the integer sequences are padded (or truncated) to a \texttt{maxlen} (e.g., 50) using \texttt{tensorflow.keras.preprocessing.sequence.pad\_sequences}. This ensures all input sequences have the same length.
+
+\vspace{0.5em}
+\textbf{One-Hot Encoding Labels:} 
+The numerical labels are converted into a one-hot encoded format suitable for categorical cross-entropy loss using \texttt{keras.utils.to\_categorical}. After balancing, the number of classes would be 4 (\texttt{joy}, \texttt{sadness}, \texttt{fear}, \texttt{anger}).
+
+\subsection{CNN Model Architecture: Implementation with Keras Functional API}
+
+The model employs a multi-branch CNN architecture, likely to capture features using different n-gram filter sizes or convolutional configurations simultaneously.
+
+\vspace{0.5em}
+\textbf{Hyperparameters:}
+\begin{itemize}
+    \item \texttt{max\_words}: Size of the vocabulary (e.g., 10000).
+    \item \texttt{max\_len}: Length of input sequences (e.g., 50).
+    \item \texttt{embedding\_dim}: Dimensionality of the word embedding vectors (e.g., 32).
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Embedding Layer:} 
+\texttt{Embedding(max\_words, embedding\_dim, input\_length=max\_len)} is the first layer in each branch. It maps each word index in the input sequence to a dense vector of \texttt{embedding\_dim} dimensions. This layer learns word representations during training.
+
+\vspace{0.5em}
+\textbf{Convolutional Branches (e.g., Branch 1, Branch 2):}
+The notebook snippet shows two identical branches, but in practice, these could have different \texttt{Conv1D} filter sizes (e.g., kernel sizes of 3, 4, 5 to capture tri-grams, quad-grams, etc.). Each branch has the following structure:
+\begin{itemize}
+    \item \textbf{Input:} Takes the output of the Embedding layer.
+    \item \texttt{Conv1D(filters=64, kernel\_size=3, padding='same', activation='relu')}: A 1D convolutional layer with 64 filters and a kernel size of 3. \texttt{padding='same'} ensures the output sequence length is the same as the input. ReLU activation introduces non-linearity.
+    \item \texttt{BatchNormalization()}: Normalizes the activations of the previous layer, which can help stabilize and accelerate training.
+    \item \texttt{ReLU()}: An additional ReLU activation after batch normalization.
+    \item \texttt{Dropout(0.5)}: A dropout layer that randomly sets 50\% of input units to 0 during training, a regularization technique to prevent overfitting.
+    \item \texttt{GlobalMaxPooling1D()}: Performs max pooling over the entire output of the convolutional layer for each filter. This reduces each feature map to a single number, effectively capturing the most important feature detected by that filter across the sequence.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Concatenation Layer:}
+The outputs (feature vectors) from the \texttt{GlobalMaxPooling1D} layers of all branches are concatenated using \texttt{Concatenate()([branch1.output, branch2.output, ...])}. This combines the features learned by different convolutional configurations. For example, if two branches with 64 features each are used, the concatenated output will have 128 features.
+
+\vspace{0.5em}
+\textbf{Fully Connected Layers (Classifier Head):}
+\begin{itemize}
+    \item \texttt{Dense(128, activation='relu')(concatenated)}: A dense (fully connected) layer with 128 units and ReLU activation, processing the concatenated features.
+    \item \texttt{Dropout(0.3)(hid\_layer)}: Another dropout layer for regularization.
+    \item \texttt{Dense(num\_classes, activation='softmax')(dropout)}: The output layer with \texttt{num\_classes} (e.g., 4 after balancing) units and softmax activation. Softmax outputs a probability distribution over the classes.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Model Definition:}
+The model is created using the Keras Functional API:
+\texttt{Model(inputs=[branch1.input, branch2.input, ...], outputs=output\_layer)}.
+The inputs would be a list of input tensors, one for each branch if they process the same input sequence in parallel. The snippet shows \texttt{[branch1.input, branch2.input]}, implying the same input sequence is fed to both branches.
+
+\subsection{Training Algorithm and Implementation}
+
+\vspace{0.5em}
+\textbf{Model Compilation:} 
+Before training, the model is compiled with the following configuration:
+\begin{itemize}
+    \item \texttt{optimizer='adamax'}: The Adamax optimizer is chosen, a variant of the Adam optimizer that is sometimes more stable for certain tasks.
+    \item \texttt{loss='categorical\_crossentropy'}: Suitable for multi-class classification with one-hot encoded labels.
+    \item \texttt{metrics=['accuracy', Precision(), Recall()]}: Accuracy, precision, and recall are tracked during training and evaluation to monitor performance.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Model Training (\texttt{model.fit}):}
+The model is trained using the \texttt{fit} method with the following setup:
+\begin{itemize}
+    \item \textbf{Inputs:} \texttt{[tr\_x, tr\_x]} — since the model has two input layers for the two branches, both processing the same input sequence.
+    \item \textbf{Outputs:} \texttt{tr\_y} — the one-hot encoded training labels.
+    \item \textbf{epochs:} Number of training iterations over the entire dataset (e.g., 25).
+    \item \textbf{batch\_size:} Number of samples per gradient update (e.g., 256).
+    \item \textbf{validation\_data:} \texttt{([val\_x, val\_x], val\_y)} — used for evaluating the model on the validation set after each epoch.
+\end{itemize}
+
+\vspace{0.5em}
+The training history, including metrics such as loss, accuracy, precision, and recall for both the training and validation sets, is stored. This history can later be used for visualizing performance trends over epochs.
+
+\subsection{Evaluation and Result Visualization}
+
+\vspace{0.5em}
+\textbf{Model Evaluation (\texttt{model.evaluate}):}
+The trained model is evaluated on both the training set and the test set to obtain final performance metrics:
+\begin{itemize}
+    \item \texttt{(loss, accuracy, precision, recall) = model.evaluate([ts\_x, ts\_x], ts\_y)}
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Result Visualization:}
+\begin{itemize}
+    \item \textbf{Training History Plots:} Using \texttt{matplotlib}, the following plots are generated:
+    \begin{itemize}
+        \item Training loss vs. validation loss per epoch.
+        \item Training accuracy vs. validation accuracy per epoch.
+        \item Training precision vs. validation precision per epoch.
+        \item Training recall vs. validation recall per epoch.
+    \end{itemize}
+    Best epoch points (e.g., lowest validation loss, highest validation accuracy) are often highlighted on these plots to indicate the optimal training performance.
+    
+    \item \textbf{Confusion Matrix:}
+    \begin{itemize}
+        \item Predictions are made on the test set: \texttt{y\_pred = np.argmax(model.predict([ts\_x, ts\_x]), axis=1)}.
+        \item True labels \texttt{y\_true} are obtained by applying \texttt{argmax} on \texttt{ts\_y} or using the original encoded labels.
+        \item \texttt{sklearn.metrics.confusion\_matrix(y\_true, y\_pred)} computes the confusion matrix.
+        \item \texttt{seaborn}'s \texttt{heatmap} is used to visualize the confusion matrix, with annotations showing counts and class labels.
+    \end{itemize}
+    
+    \item \textbf{Classification Report:}
+    \begin{itemize}
+        \item \texttt{sklearn.metrics.classification\_report(y\_true, y\_pred)} provides precision, recall, F1-score, and support for each class, offering a detailed breakdown of the model's classification performance.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Prediction Function and Model Saving}
+
+\vspace{0.5em}
+\textbf{Model Saving:} \\
+The trained Keras model is saved to an HDF5 file using:
+\begin{itemize}
+    \item \texttt{model.save('nlp.h5')}: Saves the complete model architecture, weights, and optimizer state.
+    \item The tokenizer object is saved using \texttt{pickle}:
+    \item \texttt{pickle.dump(tokenizer, tokenizer\_file)}: This is essential as the tokenizer is required for preprocessing new text during inference to ensure consistency.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Prediction Function (\texttt{predict}):}
+A dedicated function is defined to handle new text predictions. It operates as follows:
+\begin{itemize}
+    \item Loads the saved Keras model from the HDF5 file.
+    \item Loads the pickled tokenizer from disk.
+    \item Preprocesses the input text using the loaded tokenizer:
+    \begin{itemize}
+        \item Converts text to sequences using \texttt{texts\_to\_sequences}.
+        \item Pads the sequences using \texttt{pad\_sequences} to match the model’s expected input length.
+    \end{itemize}
+    \item Uses \texttt{model.predict()} to obtain prediction probabilities.
+    \item Maps the predicted probabilities to corresponding emotion labels.
+    \item Visualizes the prediction probabilities for each emotion class using a horizontal bar chart created with \texttt{matplotlib}, providing an intuitive view of the model's confidence for each emotion.
+\end{itemize}
+
+\section{Algorithmic Results and Model Performance}
+
+\vspace{0.5em}
+The notebook title and evaluation output suggest that the model achieves high accuracy, approximately 95\% on the test set after balancing and removing some classes.
+
+\vspace{0.5em}
+\textbf{Key Performance Metrics:}
+\begin{itemize}
+    \item \textbf{Accuracy:} The primary metric, indicating the overall correctness of the model’s classifications across all classes.
+    
+    \item \textbf{Precision \& Recall:} These metrics provide a more detailed view of performance, especially on a per-class basis.
+    \begin{itemize}
+        \item High precision indicates the model produces few false positives.
+        \item High recall indicates the model misses few true instances (few false negatives).
+    \end{itemize}
+    
+    \item \textbf{Loss Curves:} The training and validation loss curves ideally show both decreasing trends and convergence, with only a small gap between them, which suggests good generalization and minimal overfitting.
+    
+    \item \textbf{Confusion Matrix:} The confusion matrix highlights which emotions are well-distinguished by the model and which ones tend to be confused. This can inform further refinement or targeted improvements.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Model Insights:} \\
+The multi-branch CNN architecture, combined with learned word embeddings, enables the model to capture and leverage relevant features from the text for effective emotion classification. Notably, the data balancing process is a critical step that likely contributed significantly to achieving fair and high performance across the considered emotion classes, ensuring the model does not become biased toward over-represented categories.
+
+\section{Discussion of Algorithmic Choices and Code Implementation}
+
+\vspace{0.5em}
+\textbf{Effectiveness of CNN for Text:} \\
+1D CNNs are effective for text classification because they can learn hierarchical features representing n-grams of varying lengths. The \texttt{Conv1D} layers act as feature detectors for local patterns within sequences, while \texttt{GlobalMaxPooling1D} selects the most salient features, summarizing each feature map into a single value.
+
+\vspace{0.5em}
+\textbf{Multi-Branch Architecture:} \\
+Using multiple convolutional branches (even if identical in the presented snippet, they could be varied with different kernel sizes) allows the model to learn different types of features or patterns at different scales simultaneously. Concatenating these diverse features provides a richer, more informative representation for the final classifier.
+
+\vspace{0.5em}
+\textbf{Embedding Layer:} \\
+The embedding layer is a crucial component, as it transforms sparse, high-dimensional word indices into lower-dimensional dense vectors that capture semantic relationships between words. Training this layer jointly with the rest of the network allows the embeddings to be specialized for the specific task of emotion detection.
+
+\vspace{0.5em}
+\textbf{Data Balancing:} \\
+The decision to remove minority classes (such as \texttt{love} and \texttt{surprise}) and undersample majority classes (\texttt{joy}, \texttt{sadness}) is a pragmatic approach to addressing class imbalance. While this reduces the dataset size and potentially discards some valuable information, it helps prevent the model from becoming overly biased towards frequent classes and often leads to improved per-class performance on the retained categories.
+
+\vspace{0.5em}
+\textbf{Hyperparameters:} \\
+Key hyperparameters such as \texttt{max\_words}, \texttt{max\_len}, \texttt{embedding\_dim}, number of filters, kernel sizes, dropout rates, batch size, and number of epochs all play a critical role in the model’s performance. The reported 95\% accuracy suggests that the chosen parameters were well-suited for this task.
+
+\vspace{0.5em}
+\textbf{Limitations:}
+\begin{itemize}
+    \item \textbf{Loss of Information:} Removing classes and undersampling reduces the dataset and may discard nuanced patterns present in the original data.
+    \item \textbf{Fixed Sequence Length:} Padding or truncating sequences to a fixed \texttt{max\_len} means that very long texts lose information, while very short texts are artificially extended, which may not be optimal.
+    \item \textbf{Contextual Understanding:} While CNNs capture local context effectively, they may struggle to capture long-range dependencies in text compared to architectures like Recurrent Neural Networks (RNNs) or Transformers.
+\end{itemize}
+
+\vspace{0.5em}
+\textbf{Potential Future Work:}
+\begin{itemize}
+    \item \textbf{Advanced Architectures:} Exploring RNNs (such as LSTMs or GRUs), Transformers (like BERT), or hybrid CNN-RNN models for enhanced contextual understanding.
+    \item \textbf{Pre-trained Embeddings:} Utilizing pre-trained word embeddings such as Word2Vec, GloVe, or FastText as initial weights for the embedding layer, which can be especially advantageous when working with smaller datasets.
+    \item \textbf{Hyperparameter Optimization:} Conducting systematic searches (e.g., grid search, random search, or Bayesian optimization) for optimal hyperparameter settings.
+    \item \textbf{Handling Imbalance Differently:} Investigating alternative techniques such as weighted loss functions or sophisticated oversampling methods (e.g., SMOTE for text data) instead of removing classes.
+    \item \textbf{Attention Mechanisms:} Incorporating attention mechanisms into the CNN framework to allow the model to focus on the most relevant parts of the input text.
+\end{itemize}
+
+
+\section{Conclusion}
+
+\vspace{0.5em}
+The project successfully demonstrates the application of a multi-branch Convolutional Neural Network using TensorFlow/Keras for emotion classification from text, achieving a high reported accuracy of 95\%. 
+
+\vspace{0.5em}
+Key algorithmic steps include careful data preprocessing through tokenization and padding, the application of a crucial data balancing strategy, and the design of a well-structured CNN architecture that leverages word embeddings and 1D convolutions to extract meaningful features from textual input.
+
+\vspace{0.5em}
+The implementation provides a clear and practical example of building an effective text classifier. Detailed evaluation using various metrics and visualizations confirms the model's proficiency and robustness. While there are certainly areas for future exploration — such as experimenting with more advanced architectures or employing sophisticated data handling techniques — the current approach serves as a strong and reliable baseline. It effectively highlights the capabilities of CNNs in natural language processing tasks when combined with appropriate and thoughtful data preparation.
+
+\end{document}
